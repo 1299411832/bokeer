@@ -158,6 +158,8 @@
                   :href="c.link || '/'"
                   class="comment-pill"
                   :class="isDark ? 'comment-pill-dark' : 'comment-pill-light'"
+                  @mouseenter="onCommentPillEnter"
+                  @mouseleave="onCommentPillLeave"
                 >
                   <img
                     :src="recentAvatar(c)"
@@ -165,7 +167,10 @@
                     alt="avatar"
                     @error="onRecentAvatarError($event, c.nick || '')"
                   />
-                  <span class="comment-pill-text" @wheel="onCommentTextWheel">{{ (c.nick || '匿名') + '：' + shortText(c.content) }}</span>
+                  <span class="comment-pill-text">
+                    <span class="comment-pill-nick">{{ (c.nick || '匿名') + '：' }}</span>
+                    <span class="comment-pill-content" @wheel="onCommentTextWheel">{{ shortText(c.content) }}</span>
+                  </span>
                 </a>
               </div>
             </div>
@@ -332,6 +337,8 @@
                   :href="c.link || '/'"
                   class="comment-pill"
                   :class="isDark ? 'comment-pill-dark' : 'comment-pill-light'"
+                  @mouseenter="onCommentPillEnter"
+                  @mouseleave="onCommentPillLeave"
                 >
                   <img
                     :src="recentAvatar(c)"
@@ -339,7 +346,10 @@
                     alt="avatar"
                     @error="onRecentAvatarError($event, c.nick || '')"
                   />
-                  <span class="comment-pill-text" @wheel="onCommentTextWheel">{{ (c.nick || '匿名') + '：' + shortText(c.content) }}</span>
+                  <span class="comment-pill-text">
+                    <span class="comment-pill-nick">{{ (c.nick || '匿名') + '：' }}</span>
+                    <span class="comment-pill-content" @wheel="onCommentTextWheel">{{ shortText(c.content) }}</span>
+                  </span>
                 </a>
               </div>
             </div>
@@ -2191,7 +2201,7 @@ const shortText = (s: string) => {
   const noMdImg = String(s || '').replace(/!\[[^\]]*\]\([^)]*\)/g, '')
   const noHtmlImg = noMdImg.replace(/<img[^>]*>/gi, '')
   const t = noHtmlImg.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
-  return t.length > 36 ? t.slice(0, 36) : (t || '评论')
+  return t || '评论'
 }
 const onCommentTextWheel = (e: WheelEvent) => {
   const el = e.currentTarget as HTMLElement | null
@@ -2201,6 +2211,69 @@ const onCommentTextWheel = (e: WheelEvent) => {
   e.preventDefault()
   const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
   el.scrollLeft = Math.max(0, Math.min(max, el.scrollLeft + delta))
+  const st = __recentCommentAutoScroll.get(el)
+  if (st) st.pauseUntil = performance.now() + 1200
+}
+const __recentCommentAutoScroll = new WeakMap<HTMLElement, { raf: number, last: number, pauseUntil: number }>()
+const stopRecentCommentAutoScroll = (el: HTMLElement, reset: boolean) => {
+  const st = __recentCommentAutoScroll.get(el)
+  if (st?.raf) cancelAnimationFrame(st.raf)
+  __recentCommentAutoScroll.delete(el)
+  if (reset) el.scrollLeft = 0
+}
+const startRecentCommentAutoScroll = (el: HTMLElement) => {
+  const max = el.scrollWidth - el.clientWidth
+  if (max <= 0) return
+  stopRecentCommentAutoScroll(el, false)
+  el.scrollLeft = 0
+  const now = performance.now()
+  const st = { raf: 0, last: now, pauseUntil: now + 300 }
+  __recentCommentAutoScroll.set(el, st)
+  const speed = 40
+  const step = (t: number) => {
+    const cur = __recentCommentAutoScroll.get(el)
+    if (!cur) return
+    const maxNow = el.scrollWidth - el.clientWidth
+    if (maxNow <= 0) return stopRecentCommentAutoScroll(el, true)
+    const dt = Math.max(0, t - cur.last)
+    cur.last = t
+    if (t < cur.pauseUntil) {
+      cur.raf = requestAnimationFrame(step)
+      return
+    }
+    el.scrollLeft = Math.min(maxNow, el.scrollLeft + (speed * dt / 1000))
+    if (el.scrollLeft >= maxNow - 0.5) {
+      el.scrollLeft = maxNow
+      stopRecentCommentAutoScroll(el, false)
+      return
+    }
+    cur.raf = requestAnimationFrame(step)
+  }
+  st.raf = requestAnimationFrame(step)
+}
+const onCommentTextEnter = (e: MouseEvent) => {
+  const el = e.currentTarget as HTMLElement | null
+  if (!el) return
+  startRecentCommentAutoScroll(el)
+}
+const onCommentTextLeave = (e: MouseEvent) => {
+  const el = e.currentTarget as HTMLElement | null
+  if (!el) return
+  stopRecentCommentAutoScroll(el, true)
+}
+const onCommentPillEnter = (e: MouseEvent) => {
+  const pill = e.currentTarget as HTMLElement | null
+  if (!pill) return
+  const el = pill.querySelector('.comment-pill-content') as HTMLElement | null
+  if (!el) return
+  startRecentCommentAutoScroll(el)
+}
+const onCommentPillLeave = (e: MouseEvent) => {
+  const pill = e.currentTarget as HTMLElement | null
+  if (!pill) return
+  const el = pill.querySelector('.comment-pill-content') as HTMLElement | null
+  if (!el) return
+  stopRecentCommentAutoScroll(el, true)
 }
 const escapeHTML = (s: string) => String(s || '')
   .replace(/&/g, '&amp;')
@@ -3410,9 +3483,11 @@ html.dark .sidebar-card :where(.border,.border-gray-200,.border-gray-300,.border
 .comment-pill-light:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.18); }
 .comment-pill-dark:hover { box-shadow: 0 8px 22px rgba(255,255,255,0.12); }
 .comment-pill-avatar { width: 18px; height: 18px; border-radius: 9999px; object-fit: cover; flex: 0 0 auto; }
-.comment-pill-text { font-size: 12px; opacity: 0.9; display: inline-block; overflow-x: hidden; overflow-y: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; scrollbar-width: none; -ms-overflow-style: none; }
-.comment-pill-text::-webkit-scrollbar { width: 0; height: 0; display: none; }
-.comment-pill:hover .comment-pill-text { overflow-x: auto; text-overflow: clip; }
+.comment-pill-text { font-size: 12px; opacity: 0.9; display: flex; align-items: center; gap: 2px; max-width: 220px; min-width: 0; }
+.comment-pill-nick { flex: 0 0 auto; white-space: nowrap; }
+.comment-pill-content { flex: 1 1 auto; min-width: 0; display: inline-block; overflow-x: hidden; overflow-y: hidden; text-overflow: ellipsis; white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none; }
+.comment-pill-content::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.comment-pill:hover .comment-pill-content { overflow-x: auto; text-overflow: clip; }
 .recent-inline-img { display:inline-block; width:18px; height:18px; object-fit:cover; border-radius:4px; vertical-align:middle; margin: -2px 2px 0 2px; }
 .ad-wrap { position: relative; aspect-ratio: var(--ad-aspect, 1 / 1); }
 .ad-image { width: 100%; height: 100%; object-fit: contain; transition: filter .12s ease, transform .12s ease; }

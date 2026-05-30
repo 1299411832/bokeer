@@ -1,37 +1,39 @@
 <template>
   <div class="floating-sidebar" :class="[isDark ? 'fs-dark' : 'fs-light', { 'is-collapsed': collapsed }]">
+    <div class="fs-actions" :aria-hidden="collapsed">
+      <button class="tool-btn btn-layout" :class="isDark ? 'btn-dark' : 'btn-light'" @click="$emit('toggle-layout')" aria-label="布局" :tabindex="actionsTabIndex">
+        <UIcon :name="layoutIconProp" class="w-6 h-6" />
+        <span class="btn-label">布局</span>
+      </button>
+      <button class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" @click="$emit('search')" aria-label="搜索" :tabindex="actionsTabIndex">
+        <UIcon name="i-heroicons-magnifying-glass" class="w-6 h-6" />
+        <span class="btn-label">搜索</span>
+      </button>
+      <button class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" @click="$emit('switch-background')" aria-label="背景" :tabindex="actionsTabIndex">
+        <UIcon name="i-mdi-image-outline" class="w-6 h-6" />
+        <span class="btn-label">背景</span>
+      </button>
+      <button class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" @click="$emit('toggle-theme')" aria-label="切换亮暗" :tabindex="actionsTabIndex">
+        <UIcon :name="themeIcon" class="w-6 h-6" />
+        <span class="btn-label">切换亮暗</span>
+      </button>
+      <a href="/rss" target="_blank" rel="noopener noreferrer" class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" aria-label="RSS" :tabindex="actionsTabIndex">
+        <UIcon name="i-mdi-rss" class="w-6 h-6" />
+        <span class="btn-label">RSS</span>
+      </a>
+      <button class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" aria-label="后台" @click="$emit('open-admin')" :tabindex="actionsTabIndex">
+        <UIcon name="i-mdi-server-outline" class="w-6 h-6" />
+        <span class="btn-label">后台</span>
+      </button>
+    </div>
     <button
       class="tool-btn collapse-toggle-btn"
-      :class="isDark ? 'btn-dark' : 'btn-light'"
+      :class="[isDark ? 'btn-dark' : 'btn-light', { 'is-collapsed': collapsed }]"
       :aria-label="collapsed ? '展开工具栏' : '收纳工具栏'"
       @click="toggleCollapsed"
     >
-      <UIcon :name="collapsed ? 'i-heroicons-squares-2x2' : 'i-heroicons-bars-arrow-up'" class="w-6 h-6" />
+      <UIcon :name="toggleIconName" :key="toggleIconName" class="w-6 h-6" />
       <span class="btn-label">{{ collapsed ? '展开' : '收纳' }}</span>
-    </button>
-    <button v-show="!collapsed" class="tool-btn btn-layout" :class="isDark ? 'btn-dark' : 'btn-light'" @click="$emit('toggle-layout')" aria-label="布局">
-      <UIcon :name="layoutIconProp" class="w-6 h-6" />
-      <span class="btn-label">布局</span>
-    </button>
-    <button v-show="!collapsed" class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" @click="$emit('search')" aria-label="搜索">
-      <UIcon name="i-heroicons-magnifying-glass" class="w-6 h-6" />
-      <span class="btn-label">搜索</span>
-    </button>
-    <button v-show="!collapsed" class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" @click="$emit('switch-background')" aria-label="背景">
-      <UIcon name="i-mdi-image-outline" class="w-6 h-6" />
-      <span class="btn-label">背景</span>
-    </button>
-    <button v-show="!collapsed" class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" @click="$emit('toggle-theme')" aria-label="切换亮暗">
-      <UIcon :name="themeIcon" class="w-6 h-6" />
-      <span class="btn-label">切换亮暗</span>
-    </button>
-    <a v-show="!collapsed" href="/rss" target="_blank" rel="noopener noreferrer" class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" aria-label="RSS">
-      <UIcon name="i-mdi-rss" class="w-6 h-6" />
-      <span class="btn-label">RSS</span>
-    </a>
-    <button v-show="!collapsed" class="tool-btn" :class="isDark ? 'btn-dark' : 'btn-light'" aria-label="后台" @click="$emit('open-admin')">
-      <UIcon name="i-mdi-server-outline" class="w-6 h-6" />
-      <span class="btn-label">后台</span>
     </button>
   </div>
 </template>
@@ -46,6 +48,8 @@ const collapseStateStorageKey = 'floating_tool_sidebar_collapsed_v1'
 const collapsed = ref(false)
 const isMobileViewport = ref(false)
 let mediaQueryList: MediaQueryList | null = null
+const actionsTabIndex = computed(() => (collapsed.value ? -1 : 0))
+const toggleIconName = computed(() => (collapsed.value ? 'i-heroicons-squares-2x2' : 'i-heroicons-bars-arrow-up'))
 
 const readCollapseState = (): { mobile?: boolean; desktop?: boolean } => {
   if (typeof window === 'undefined') return {}
@@ -101,9 +105,13 @@ const toggleCollapsed = () => {
 </script>
 
 <style scoped>
-.floating-sidebar { position: fixed; right: 16px; top: 50%; transform: translateY(-50%); z-index: 1000; display:flex; flex-direction:column; gap:10px; padding:8px; border-radius:12px; background: transparent; box-shadow: none; }
+.floating-sidebar { position: fixed; right: 16px; top: 50%; transform: translateY(-50%); bottom: auto; z-index: 1000; display:flex; flex-direction:column; gap:10px; padding:8px; border-radius:12px; background: transparent; box-shadow: none; transition: padding .22s ease, border-radius .22s ease; }
 .floating-sidebar.fs-dark { background: transparent !important; }
 .floating-sidebar.fs-light { background: transparent !important; box-shadow: none; }
+.fs-actions { display:flex; flex-direction: column; gap: 10px; overflow: hidden; max-height: 520px; opacity: 1; transform: translate3d(0,0,0); transition: max-height .28s cubic-bezier(.2,.8,.2,1), opacity .18s ease, transform .28s cubic-bezier(.2,.8,.2,1); }
+.floating-sidebar.is-collapsed .fs-actions { max-height: 0; opacity: 0; transform: translate3d(0,10px,0) scale(.98); pointer-events: none; }
+.fs-actions .tool-btn { transition: transform .22s cubic-bezier(.2,.8,.2,1), opacity .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.floating-sidebar.is-collapsed .fs-actions .tool-btn { opacity: 0; transform: translate3d(0,10px,0) scale(.92); }
 .tool-btn { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:10px; transition: all .18s ease; box-sizing: border-box; flex-shrink: 0; aspect-ratio: 1 / 1; }
 .tool-btn { position: relative; }
 .btn-label { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%) translateX(-6px); opacity: 0; pointer-events: none; white-space: nowrap; display: inline-block; padding: 6px 8px; font-size: 12px; border-radius: 8px; transition: opacity .08s ease, transform .08s ease; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2)); box-sizing: border-box; }
@@ -115,9 +123,19 @@ const toggleCollapsed = () => {
 .tool-btn.btn-light { background: rgba(255,255,255,0.92); color:#1f2937; border: 1px solid rgba(0,0,0,0.18); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .tool-btn.btn-light:hover { transform: translate3d(0,0,0) scale(1.06); background: #ffffff; border-color: rgba(0,0,0,0.24); box-shadow: 0 4px 12px rgba(0,0,0,.18); }
 .tool-btn.btn-light:hover { transform: translate3d(0,0,0) scale(1.06); background: rgba(255,255,255,0.70); }
-.floating-sidebar.is-collapsed { padding: 0; gap: 0; border-radius: 9999px; }
+.floating-sidebar.is-collapsed { padding: 8px; gap: 0; border-radius: 9999px; }
+.collapse-toggle-btn { user-select: none; -webkit-tap-highlight-color: transparent; }
+.collapse-toggle-btn:active { transform: translate3d(0,0,0) scale(.94); }
+.collapse-toggle-btn.is-collapsed { animation: fs-toggle-in .22s cubic-bezier(.2,.8,.2,1); }
+.floating-sidebar:not(.is-collapsed) .collapse-toggle-btn { animation: fs-toggle-out .22s cubic-bezier(.2,.8,.2,1); }
+@keyframes fs-toggle-in { 0% { transform: translate3d(0,0,0) scale(1); } 60% { transform: translate3d(0,0,0) scale(1.06); } 100% { transform: translate3d(0,0,0) scale(1); } }
+@keyframes fs-toggle-out { 0% { transform: translate3d(0,0,0) scale(1); } 60% { transform: translate3d(0,0,0) scale(1.06); } 100% { transform: translate3d(0,0,0) scale(1); } }
 @media (max-width: 1024px) {
-  .floating-sidebar { left: 50%; bottom: 18px; transform: translateX(-50%); right: auto; top: auto; flex-direction: row; gap: 12px; padding: 10px 14px; border-radius: 20px; max-width: min(560px, calc(100vw - 40px)); justify-content: center; }
+  .floating-sidebar { left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); transform: translateX(-50%); right: auto; top: auto; flex-direction: row; gap: 12px; padding: 10px 14px; border-radius: 20px; max-width: min(560px, calc(100vw - 40px)); justify-content: center; }
+  .floating-sidebar.is-collapsed { padding: 10px 14px; }
+  .fs-actions { flex-direction: row; gap: 12px; max-width: 560px; max-height: 72px; transition: max-width .28s cubic-bezier(.2,.8,.2,1), opacity .18s ease, transform .28s cubic-bezier(.2,.8,.2,1); }
+  .floating-sidebar.is-collapsed .fs-actions { max-width: 0; max-height: 72px; transform: translate3d(10px,0,0) scale(.98); }
+  .floating-sidebar.is-collapsed .fs-actions .tool-btn { transform: translate3d(10px,0,0) scale(.92); }
   .tool-btn { width:48px; height:48px; border-radius:9999px; flex: 0 0 48px; }
   .tool-btn.btn-layout { display: none; }
   .tool-btn .btn-label { right: auto !important; left: 50%; top: auto; bottom: calc(100% + 8px); transform: translateX(-50%) translateY(6px); }
@@ -126,5 +144,8 @@ const toggleCollapsed = () => {
 @media (min-width: 1025px) {
   .floating-sidebar.fs-light .btn-label, .floating-sidebar.fs-dark .btn-label { right: calc(100% + 8px); left: auto; }
 }
-@media (max-width: 640px) { .floating-sidebar { bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); } }
+@media (prefers-reduced-motion: reduce) {
+  .floating-sidebar, .fs-actions, .fs-actions .tool-btn, .tool-btn, .btn-label { transition: none !important; }
+  .collapse-toggle-btn.is-collapsed, .floating-sidebar:not(.is-collapsed) .collapse-toggle-btn { animation: none !important; }
+}
 </style>

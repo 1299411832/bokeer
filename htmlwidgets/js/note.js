@@ -265,6 +265,106 @@ document.addEventListener('DOMContentLoaded', function() {
         parse: (text) => text
     };
 
+    const __biliMetaCache = new Map();
+    const __biliCoverPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+    function buildBilibiliPlayerSrc({ bvid, aid, autoplay }) {
+        const common = 'isOutside=true&p=1&high_quality=1&danmaku=0&muted=0';
+        const ap = autoplay ? 1 : 0;
+        if (aid) return `https://player.bilibili.com/player.html?${common}&aid=${encodeURIComponent(aid)}&autoplay=${ap}`;
+        return `https://player.bilibili.com/player.html?${common}&bvid=${encodeURIComponent(bvid)}&autoplay=${ap}`;
+    }
+
+    function buildBilibiliCoverHtml({ bvid, aid }) {
+        const dataAttrs = aid ? `data-aid="${aid}"` : `data-bvid="${bvid}"`;
+        return `<div class="video-wrapper bilibili-embed" ${dataAttrs} data-hydrated="0"><button type="button" class="bilibili-cover-btn" aria-label="播放 B 站视频"><img class="bilibili-cover-img" src="${__biliCoverPixel}" alt="" loading="lazy" referrerpolicy="no-referrer" /><span class="bilibili-cover-shade" aria-hidden="true"></span><span class="bilibili-cover-play" aria-hidden="true"></span></button></div>`;
+    }
+
+    async function fetchBilibiliMeta({ bvid, aid }) {
+        const key = aid ? `aid:${aid}` : `bvid:${bvid}`;
+        if (__biliMetaCache.has(key)) return __biliMetaCache.get(key);
+        const p = (async () => {
+            const qs = aid ? `aid=${encodeURIComponent(aid)}` : `bvid=${encodeURIComponent(bvid)}`;
+            const url = `https://api.bilibili.com/x/web-interface/view?${qs}`;
+            const parse = (json) => {
+                if (!json || json.code !== 0 || !json.data) throw new Error('bad response');
+                return { title: json.data.title || '', pic: json.data.pic || '' };
+            };
+
+            try {
+                const resp = await fetch(url, { referrerPolicy: 'no-referrer' });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const json = await resp.json();
+                return parse(json);
+            } catch {
+                const cb = `__bili_cb_${Math.random().toString(36).slice(2)}`;
+                const jsonpUrl = `${url}&jsonp=jsonp&callback=${cb}`;
+                return await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    let done = false;
+                    const cleanup = () => {
+                        if (done) return;
+                        done = true;
+                        try { delete window[cb]; } catch { window[cb] = undefined; }
+                        if (script && script.parentNode) script.parentNode.removeChild(script);
+                    };
+                    const timer = setTimeout(() => {
+                        cleanup();
+                        reject(new Error('timeout'));
+                    }, 6000);
+                    window[cb] = (json) => {
+                        clearTimeout(timer);
+                        try {
+                            const meta = parse(json);
+                            cleanup();
+                            resolve(meta);
+                        } catch (e) {
+                            cleanup();
+                            reject(e);
+                        }
+                    };
+                    script.onerror = () => {
+                        clearTimeout(timer);
+                        cleanup();
+                        reject(new Error('jsonp error'));
+                    };
+                    script.src = jsonpUrl;
+                    document.head.appendChild(script);
+                });
+            }
+        })();
+        __biliMetaCache.set(key, p);
+        return p;
+    }
+
+    function hydrateBilibiliEmbeds(root) {
+        const nodes = root.querySelectorAll('.bilibili-embed[data-hydrated="0"]');
+        nodes.forEach((wrap) => {
+            wrap.setAttribute('data-hydrated', '1');
+            const img = wrap.querySelector('.bilibili-cover-img');
+            const btn = wrap.querySelector('.bilibili-cover-btn');
+            const bvid = wrap.getAttribute('data-bvid') || '';
+            const aid = wrap.getAttribute('data-aid') || '';
+
+            fetchBilibiliMeta({ bvid, aid })
+                .then((meta) => {
+                    if (img && meta.pic) img.src = meta.pic;
+                    if (img && meta.title) img.alt = meta.title;
+                    if (btn && meta.title) btn.title = meta.title;
+                })
+                .catch(() => {});
+        });
+    }
+
+    function playBilibiliEmbed(wrapper) {
+        if (!wrapper || wrapper.classList.contains('is-playing')) return;
+        const bvid = wrapper.getAttribute('data-bvid') || '';
+        const aid = wrapper.getAttribute('data-aid') || '';
+        const src = buildBilibiliPlayerSrc({ bvid, aid, autoplay: true });
+        wrapper.classList.add('is-playing');
+        wrapper.innerHTML = `<iframe src='${src}' scrolling='no' frameborder='0' allowfullscreen allow='autoplay; fullscreen; picture-in-picture; encrypted-media' referrerpolicy='no-referrer-when-downgrade'></iframe>`;
+    }
+
     function parseContent(content) {
         // 先解析 Markdown
         content = marked.parse(content);
@@ -273,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
         content = content.replace(/<img/g, '<img class="zoom-image"');
 
         // 定义媒体平台的正则表达式
-        const BILIBILI_REG = /<a href="https:\/\/www\.bilibili\.com\/video\/((av[\d]{1,10})|(BV([\w]{10})))\/?">.*?<\/a>/g;
+        const BILIBILI_REG = /<a href="https:\/\/www\.bilibili\.com\/video\/((av[\d]{1,10})|(BV([\w]{10})))\/?(?:\?[^"]*)?">.*?<\/a>/g;
         const QQMUSIC_REG = /<a href="https:\/\/y\.qq\.com\/.*(\/[0-9a-zA-Z]+)(\.html)?">.*?<\/a>/g;
         const QQVIDEO_REG = /<a href="https:\/\/v\.qq\.com\/.*\/([a-zA-Z0-9]+)\.html">.*?<\/a>/g;
         const SPOTIFY_REG = /<a href="https:\/\/open\.spotify\.com\/(track|album)\/([\s\S]+)">.*?<\/a>/g;
@@ -290,7 +390,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 处理各种媒体链接
         content = content
-        .replace(BILIBILI_REG, "<div class='video-wrapper'><iframe src='https://www.bilibili.com/blackboard/html5mobileplayer.html?bvid=$1&as_wide=1&high_quality=1&danmaku=0' scrolling='no' border='0' frameborder='no' framespacing='0' allowfullscreen='true' style='position:absolute;height:100%;width:100%;'></iframe></div>")
+        .replace(BILIBILI_REG, (m, id) => {
+            const raw = String(id || '').trim();
+            if (!raw) return m;
+            if (raw.startsWith('av')) {
+                const aid = raw.slice(2);
+                return buildBilibiliCoverHtml({ aid });
+            } else {
+                return buildBilibiliCoverHtml({ bvid: raw });
+            }
+        })
         .replace(YOUTUBE_REG, "<div class='video-wrapper'><iframe src='https://www.youtube.com/embed/$2' title='YouTube video player' frameborder='0' allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture' allowfullscreen></iframe></div>")
         .replace(NETEASE_MUSIC_REG, "<div class='music-wrapper'><meting-js auto='https://music.163.com/#/song?id=$1'></meting-js></div>")
         .replace(QQMUSIC_REG, "<div class='music-wrapper'><meting-js auto='https://y.qq.com/n/yqq/song$1.html'></meting-js></div>")
@@ -397,6 +506,7 @@ document.addEventListener('DOMContentLoaded', function() {
         processedContent = parseContent(processedContent);
         description.innerHTML = processedContent;
 
+        hydrateBilibiliEmbeds(description);
         buildImageGrids(description);
 
         const zoomImages = description.querySelectorAll('.zoom-image');
@@ -589,6 +699,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 将filterByTag函数暴露到全局作用域
     window.filterByTag = filterByTag;
+
+    container.addEventListener('click', (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest('.bilibili-cover-btn') : null;
+        if (!btn) return;
+        const wrapper = btn.closest('.bilibili-embed');
+        playBilibiliEmbed(wrapper);
+    });
 });
 
 // 新增：异步拉取GitHub仓库信息并填充卡片
