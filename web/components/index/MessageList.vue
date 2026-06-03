@@ -2722,12 +2722,13 @@ onMounted(() => {
 }
 /* 添加高亮动画样式 */
 @keyframes highlight {
-  0% { background: rgba(251, 146, 60, 0.3); }
-  100% { background: var(--home-surface-dark); }
+  0% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0), 0 0 0 0 rgba(251, 146, 60, 0); }
+  30% { box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.35), 0 12px 30px rgba(251, 146, 60, 0.12); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0), 0 0 0 0 rgba(251, 146, 60, 0); }
 }
 
 .highlight-message {
-  animation: highlight 2s ease-out;
+  animation: highlight 1.4s ease-out;
 }
 
 /* 轻模式覆盖 Markdown 颜色 */

@@ -108,8 +108,8 @@ const toggleCollapsed = () => {
 .floating-sidebar { position: fixed; right: 16px; top: 50%; transform: translateY(-50%); bottom: auto; z-index: 1000; display:flex; flex-direction:column; gap:10px; padding:8px; border-radius:12px; background: transparent; box-shadow: none; transition: padding .22s ease, border-radius .22s ease; }
 .floating-sidebar.fs-dark { background: transparent !important; }
 .floating-sidebar.fs-light { background: transparent !important; box-shadow: none; }
-.fs-actions { display:flex; flex-direction: column; gap: 10px; overflow: hidden; max-height: 520px; opacity: 1; transform: translate3d(0,0,0); transition: max-height .28s cubic-bezier(.2,.8,.2,1), opacity .18s ease, transform .28s cubic-bezier(.2,.8,.2,1); }
-.floating-sidebar.is-collapsed .fs-actions { max-height: 0; opacity: 0; transform: translate3d(0,10px,0) scale(.98); pointer-events: none; }
+.fs-actions { display:flex; flex-direction: column; gap: 10px; max-height: 520px; opacity: 1; transform: translate3d(0,0,0); transition: max-height .28s cubic-bezier(.2,.8,.2,1), opacity .18s ease, transform .28s cubic-bezier(.2,.8,.2,1); }
+.floating-sidebar.is-collapsed .fs-actions { max-height: 0; opacity: 0; transform: translate3d(0,10px,0) scale(.98); pointer-events: none; overflow: hidden; }
 .fs-actions .tool-btn { transition: transform .22s cubic-bezier(.2,.8,.2,1), opacity .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .floating-sidebar.is-collapsed .fs-actions .tool-btn { opacity: 0; transform: translate3d(0,10px,0) scale(.92); }
 .tool-btn { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:10px; transition: all .18s ease; box-sizing: border-box; flex-shrink: 0; aspect-ratio: 1 / 1; }
@@ -117,7 +117,7 @@ const toggleCollapsed = () => {
 .btn-label { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%) translateX(-6px); opacity: 0; pointer-events: none; white-space: nowrap; display: inline-block; padding: 6px 8px; font-size: 12px; border-radius: 8px; transition: opacity .08s ease, transform .08s ease; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2)); box-sizing: border-box; }
 .btn-dark .btn-label { background: #1f2630; color: #fff; border: 1px solid rgba(255,255,255,0.16); }
 .btn-light .btn-label { background: rgba(255,255,255,0.95); color: #111827; border: 1px solid rgba(0,0,0,0.14); }
-.tool-btn:hover .btn-label { opacity: 1; transform: translateY(-50%) translateX(0); }
+.tool-btn:hover .btn-label, .tool-btn:focus-visible .btn-label { opacity: 1; transform: translateY(-50%) translateX(0); }
 .tool-btn.btn-dark { background: #202a36; color:#ffffff; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 8px 20px rgba(0,0,0,0.38); backdrop-filter: blur(6px); }
 .tool-btn.btn-dark:hover { transform: translate3d(0,0,0) scale(1.06); background: #273242; border-color: rgba(255,255,255,0.24); }
 .tool-btn.btn-light { background: rgba(255,255,255,0.92); color:#1f2937; border: 1px solid rgba(0,0,0,0.18); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
@@ -139,7 +139,7 @@ const toggleCollapsed = () => {
   .tool-btn { width:48px; height:48px; border-radius:9999px; flex: 0 0 48px; }
   .tool-btn.btn-layout { display: none; }
   .tool-btn .btn-label { right: auto !important; left: 50%; top: auto; bottom: calc(100% + 8px); transform: translateX(-50%) translateY(6px); }
-  .tool-btn:hover .btn-label { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .tool-btn:hover .btn-label, .tool-btn:focus-visible .btn-label { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 @media (min-width: 1025px) {
   .floating-sidebar.fs-light .btn-label, .floating-sidebar.fs-dark .btn-label { right: calc(100% + 8px); left: auto; }
