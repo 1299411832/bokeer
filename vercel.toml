@@ -1,4 +1,3 @@
-app = "ech0-noise"
 
 [build]
   dockerfile = "Dockerfile"
